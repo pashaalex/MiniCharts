@@ -37,7 +37,7 @@ python app.py
 5. Check the preview and click **Import Data**.
 
 ## Building a chart
-![Build](docs/build_graph.png)
+![Build](docs/box_ui.png)
 1. Select a chart type in the Report Builder window.
 2. Choose the columns and other settings required for the chart.
 3. Enter a title if necessary.
