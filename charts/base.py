@@ -16,6 +16,9 @@ def trim_values(
     lower_percent: float,
     upper_percent: float,
 ) -> pd.DataFrame:
+    if lower_percent == 0 and upper_percent == 0:
+        return dataframe
+
     def trim_group(group: pd.DataFrame) -> pd.DataFrame:
         series = group[value_column]
         lower = series.quantile(lower_percent / 100)
@@ -24,7 +27,8 @@ def trim_values(
 
     if group_column:
         return pd.concat(
-            trim_group(group) for _, group in dataframe.groupby(group_column)
+            trim_group(group)
+            for _, group in dataframe.groupby(group_column, dropna=False)
         )
     return trim_group(dataframe)
 

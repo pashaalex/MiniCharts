@@ -27,6 +27,19 @@ class ImportSettings:
     columns: List[ColumnSettings] = field(default_factory=list)
 
 
+def pandas_dtype_to_data_type(dtype) -> str:
+    """Map a pandas dtype to one of the application's supported data types."""
+    if pd.api.types.is_bool_dtype(dtype):
+        return "boolean"
+    if pd.api.types.is_integer_dtype(dtype):
+        return "integer"
+    if pd.api.types.is_float_dtype(dtype):
+        return "float"
+    if pd.api.types.is_datetime64_any_dtype(dtype):
+        return "datetime"
+    return "string"
+
+
 def import_csv(filename: str, settings: ImportSettings) -> pd.DataFrame:
     """Read a CSV file and apply the column settings selected by the user."""
     dataframe = pd.read_csv(

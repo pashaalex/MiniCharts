@@ -10,11 +10,19 @@ from csv_importer import (
     ImportSettings,
     apply_column_settings,
     import_csv,
+    pandas_dtype_to_data_type,
 )
 from report_builder import ReportBuilderWindow
 
 
-ENCODINGS = {"ASCII": "ascii", "UTF-8": "utf-8"}
+ENCODINGS = {
+    "UTF-8": "utf-8",
+    "UTF-8 with BOM": "utf-8-sig",
+    "Windows-1251": "cp1251",
+    "Windows-1252": "cp1252",
+    "Latin-1": "latin-1",
+    "ASCII": "ascii",
+}
 SEPARATORS = {"Comma (,)": ",", "Semicolon (;)": ";", "Tab": "\t"}
 DECIMAL_SEPARATORS = {"Dot (.)": ".", "Comma (,)": ","}
 DATA_TYPES = ("string", "integer", "float", "boolean", "datetime")
@@ -149,7 +157,7 @@ class ImportWindow(tk.Toplevel):
 
     def _csv_option_changed(self, event: tk.Event) -> None:
         if self.filename.get():
-            self._read_structure()
+            self._read_structure(redetect_data_types=True)
 
     def _csv_settings(self) -> CsvSettings:
         return CsvSettings(
@@ -167,22 +175,31 @@ class ImportWindow(tk.Toplevel):
         self.generate_column_names = True
         self._read_structure()
 
-    def _read_structure(self) -> None:
-        self.preview_source = pd.read_csv(
-            self.filename.get(),
-            encoding=self._csv_settings().encoding,
-            sep=self._csv_settings().separator,
-            decimal=self._csv_settings().decimal_separator,
-            nrows=10,
-            header=0 if self._csv_settings().first_row_has_header else None,
-        )
-        if self.generate_column_names:
-            self.preview_source.columns = [
-                f"Column{index + 1}" for index in range(len(self.preview_source.columns))
-            ]
-        self._show_column_controls(list(self.preview_source.columns))
+    def _read_structure(self, redetect_data_types: bool = False) -> None:
+        try:
+            csv_settings = self._csv_settings()
+            self.preview_source = pd.read_csv(
+                self.filename.get(),
+                encoding=csv_settings.encoding,
+                sep=csv_settings.separator,
+                decimal=csv_settings.decimal_separator,
+                nrows=10,
+                header=0 if csv_settings.first_row_has_header else None,
+            )
+            if self.generate_column_names:
+                self.preview_source.columns = [
+                    f"Column{index + 1}" for index in range(len(self.preview_source.columns))
+                ]
+            self._show_column_controls(
+                list(self.preview_source.columns),
+                redetect_data_types=redetect_data_types,
+            )
+        except Exception as error:
+            messagebox.showerror("Error", str(error), parent=self)
 
-    def _show_column_controls(self, columns: List[str]) -> None:
+    def _show_column_controls(
+        self, columns: List[str], redetect_data_types: bool = False
+    ) -> None:
         previous_settings = {
             control["source_name"]: {
                 "include": control["include"].get(),
@@ -207,7 +224,16 @@ class ImportWindow(tk.Toplevel):
             previous = previous_settings.get(source_name, {})
             include = tk.BooleanVar(value=previous.get("include", True))
             result_name = tk.StringVar(value=previous.get("result_name", source_name))
-            data_type = tk.StringVar(value=previous.get("data_type", "string"))
+            detected_data_type = pandas_dtype_to_data_type(
+                self.preview_source[source_name].dtype
+            )
+            data_type = tk.StringVar(
+                value=(
+                    detected_data_type
+                    if redetect_data_types
+                    else previous.get("data_type", detected_data_type)
+                )
+            )
             datetime_format = tk.StringVar(value=previous.get("datetime_format", ""))
 
             ttk.Checkbutton(
@@ -319,9 +345,12 @@ class ImportWindow(tk.Toplevel):
             messagebox.showinfo("Import CSV", "Read the file structure first.", parent=self)
             return
 
-        dataframe = import_csv(self.filename.get(), self._import_settings())
-        ReportBuilderWindow(self.master, dataframe)
-        self.destroy()
+        try:
+            dataframe = import_csv(self.filename.get(), self._import_settings())
+            ReportBuilderWindow(self.master, dataframe)
+            self.destroy()
+        except Exception as error:
+            messagebox.showerror("Error", str(error), parent=self)
 
 
 def main() -> None:

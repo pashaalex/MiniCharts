@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk
+from tkinter import messagebox, ttk
 from typing import Optional
 
 import pandas as pd
@@ -51,4 +51,7 @@ class ReportBuilderWindow(tk.Toplevel):
         self.current_chart.build_settings_ui(self.settings_frame, self.dataframe)
 
     def _build_chart(self) -> None:
-        self.current_chart.build_chart(self.dataframe)
+        try:
+            self.current_chart.build_chart(self.dataframe)
+        except Exception as error:
+            messagebox.showerror("Error", str(error), parent=self)
